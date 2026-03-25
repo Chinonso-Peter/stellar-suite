@@ -1,7 +1,7 @@
 import { DragEvent, useState, useCallback, useEffect, useRef } from "react";
 import { FileExplorer } from "@/components/ide/FileExplorer";
 import { EditorTabs, TabInfo } from "@/components/ide/EditorTabs";
-import { CodeEditor } from "@/components/ide/CodeEditor";
+import CodeEditor from "@/components/ide/CodeEditor";
 import { Terminal, LogEntry } from "@/components/ide/Terminal";
 import { Toolbar } from "@/components/ide/Toolbar";
 import { ContractPanel } from "@/components/ide/ContractPanel";
@@ -9,6 +9,8 @@ import { IdentitiesView } from "@/components/ide/IdentitiesView";
 import { StatusBar } from "@/components/ide/StatusBar";
 import { useIdentityStore } from "@/store/useIdentityStore";
 import { sampleContracts, FileNode } from "@/lib/sample-contracts";
+import { DEFAULT_CUSTOM_RPC, NETWORK_CONFIG, type NetworkKey } from "@/lib/networkConfig";
+import { showCompilationFailedToast, showCompilationSuccessToast } from "@/lib/compilationToasts";
 import { DROP_LIMIT_BYTES, mapDroppedEntriesToTree, mergeFileNodes, readDropPayload } from "@/lib/file-drop";
 import {
   PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
@@ -35,6 +37,20 @@ const findParent = (nodes: FileNode[], pathParts: string[]): FileNode[] | null =
   return parent?.children ?? null;
 };
 
+type BuildState = "idle" | "building" | "success" | "error";
+
+const containsCompileError = (nodes: FileNode[]): boolean => {
+  for (const node of nodes) {
+    if (node.type === "folder" && node.children && containsCompileError(node.children)) return true;
+    if (node.type === "file") {
+      const isRust = node.language === "rust" || node.name.endsWith(".rs");
+      const content = node.content ?? "";
+      if (isRust && content.includes("compile_error!")) return true;
+    }
+  }
+  return false;
+};
+
 const Index = () => {
   const { loadIdentities, activeContext, activeIdentity } = useIdentityStore();
   const [files, setFiles] = useState<FileNode[]>(() => cloneFiles(sampleContracts));
@@ -44,8 +60,10 @@ const Index = () => {
   const [activeTabPath, setActiveTabPath] = useState<string[]>(["hello_world", "lib.rs"]);
   const [terminalExpanded, setTerminalExpanded] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [network, setNetwork] = useState("testnet");
+  const [network, setNetwork] = useState<NetworkKey>("testnet");
+  const [customRpcUrl, setCustomRpcUrl] = useState<string>(DEFAULT_CUSTOM_RPC);
   const [isCompiling, setIsCompiling] = useState(false);
+  const [buildState, setBuildState] = useState<BuildState>("idle");
   const [contractId, setContractId] = useState<string | null>(null);
   const [showExplorer, setShowExplorer] = useState(false);
   const [showPanel, setShowPanel] = useState(false);
@@ -285,17 +303,38 @@ const Index = () => {
 
   const handleCompile = useCallback(() => {
     setIsCompiling(true);
-    setTerminalExpanded(true);
+    setBuildState("building");
+    setLogs([]);
     addLog("info", "Compiling contract...");
     addLog("info", `Target network: ${network}`);
     setTimeout(() => addLog("info", "Resolving dependencies..."), 400);
     setTimeout(() => addLog("info", "Building release target..."), 900);
     setTimeout(() => {
+      const shouldFail = containsCompileError(files);
+
+      if (shouldFail) {
+        addLog("error", "✗ Compilation failed.");
+        addLog("error", "error: compile_error! macro triggered by source.");
+        setBuildState("error");
+        setIsCompiling(false);
+
+        showCompilationFailedToast({
+          onViewLogs: () => {
+            setTerminalExpanded(true);
+            setMobilePanel("none");
+          },
+        });
+        return;
+      }
+
       addLog("success", "✓ Compilation successful! WASM binary: 1.2 KB");
       addLog("info", "Contract hash: 7a8b9c...d4e5f6");
+      setBuildState("success");
       setIsCompiling(false);
+
+      showCompilationSuccessToast();
     }, 1800);
-  }, [network, addLog]);
+  }, [network, addLog, files]);
 
   const handleDeploy = useCallback(() => {
     setTerminalExpanded(true);
@@ -378,6 +417,7 @@ const Index = () => {
     }
   }, [addLog]);
   const { content, language } = getActiveContent();
+  const horizonUrl = NETWORK_CONFIG[network].horizon;
 
 
   // Tabs with unsaved markers
@@ -394,6 +434,7 @@ const Index = () => {
         onDeploy={handleDeploy}
         onTest={handleTest}
         isCompiling={isCompiling}
+        buildState={buildState}
         network={network}
         onNetworkChange={setNetwork}
         saveStatus={saveStatus}
@@ -582,6 +623,10 @@ const Index = () => {
           line={cursorPos.line}
           col={cursorPos.col}
           network={network}
+          horizonUrl={horizonUrl}
+          customRpcUrl={customRpcUrl}
+          onNetworkChange={setNetwork}
+          onCustomRpcUrlChange={setCustomRpcUrl}
           unsavedCount={unsavedFiles.size}
         />
       </div>
