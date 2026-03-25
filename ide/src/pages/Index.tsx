@@ -5,10 +5,12 @@ import CodeEditor from "@/components/editor/CodeEditor";
 import { Terminal, LogEntry } from "@/components/ide/Terminal";
 import { Toolbar } from "@/components/ide/Toolbar";
 import { ContractPanel } from "@/components/ide/ContractPanel";
+import { ContractsRepo } from "@/components/ide/ContractsRepo";
 import { StatusBar } from "@/components/ide/StatusBar";
 import { FileNode } from "@/lib/sample-contracts";
 import { useFileStore } from "@/store/useFileStore";
 import { useDiagnosticsStore } from "@/store/useDiagnosticsStore";
+import { useDeployedContractsStore } from "@/store/useDeployedContractsStore";
 import { parseMixedOutput } from "@/utils/cargoParser";
 import {
   PanelLeftClose,
@@ -59,6 +61,7 @@ const Index = () => {
   } = useFileStore();
 
   const { setDiagnostics, clearDiagnostics, errorCount, warningCount } = useDiagnosticsStore();
+  const addContract = useDeployedContractsStore((s) => s.addContract);
 
   const [terminalExpanded, setTerminalExpanded] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -260,8 +263,14 @@ const Index = () => {
       const id = "CDLZ...X7YQ";
       setContractId(id);
       addLog("success", `✓ Contract deployed! ID: ${id}`);
+      // Determine contract name from active file path or first project folder
+      const contractName =
+        activeTabPath.length > 0
+          ? activeTabPath[0]
+          : (files[0]?.name ?? "unknown_contract");
+      addContract(id, network, contractName);
     }, 2000);
-  }, [network, addLog]);
+  }, [network, addLog, activeTabPath, files, addContract]);
 
   const handleTest = useCallback(() => {
     setTerminalExpanded(true);
@@ -384,8 +393,8 @@ const Index = () => {
               className="flex-1 bg-background/60"
               onClick={() => setMobilePanel("none")}
             />
-            <div className="w-72 bg-card border-l border-border h-full">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-border">
+            <div className="w-72 bg-card border-l border-border h-full flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-border shrink-0">
                 <span className="text-xs font-semibold text-muted-foreground uppercase">
                   Interact
                 </span>
@@ -397,7 +406,12 @@ const Index = () => {
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <ContractPanel contractId={contractId} onInvoke={handleInvoke} />
+              <div className="flex-shrink-0">
+                <ContractPanel contractId={contractId} onInvoke={handleInvoke} />
+              </div>
+              <div className="flex-1 overflow-hidden border-t border-border">
+                <ContractsRepo />
+              </div>
             </div>
           </div>
         )}
@@ -495,8 +509,13 @@ const Index = () => {
         {/* Desktop contract panel */}
         <div className="hidden md:flex shrink-0 z-10">
           {showPanel && (
-            <div className="w-64 border-l border-border bg-card">
-              <ContractPanel contractId={contractId} onInvoke={handleInvoke} />
+            <div className="w-64 border-l border-border bg-card flex flex-col h-full overflow-hidden">
+              <div className="flex-shrink-0">
+                <ContractPanel contractId={contractId} onInvoke={handleInvoke} />
+              </div>
+              <div className="flex-1 overflow-hidden border-t border-border">
+                <ContractsRepo />
+              </div>
             </div>
           )}
           <div className="flex flex-col bg-card border-l border-border h-full">
