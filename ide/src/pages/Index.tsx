@@ -192,6 +192,7 @@ const Index = () => {
   };
 
   const { content, language } = getActiveContent();
+  
 
   // Tabs with unsaved markers
   const tabsWithStatus = openTabs.map((t) => ({
