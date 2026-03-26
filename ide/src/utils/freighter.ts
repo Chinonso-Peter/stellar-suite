@@ -6,7 +6,11 @@ export const checkFreighterInstalled = async (): Promise<boolean> => {
   }
   try {
     const result = await isConnected();
-    return !!result.isConnected;
+    // result could be a boolean or an object depending on the API version
+    if (typeof result === "boolean") {
+      return result;
+    }
+    return !!(result as any)?.isConnected;
   } catch (error) {
     return false;
   }
