@@ -2,10 +2,13 @@ import {
   DEFAULT_CUSTOM_RPC,
   NETWORK_CONFIG,
   NetworkKey,
+  CustomHeaders,
 } from "@/lib/networkConfig";
 import { FileNode, sampleContracts } from "@/lib/sample-contracts";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+
+export type CustomHeaders = Record<string, string>;
 
 interface TabInfo {
   path: string[];
@@ -21,11 +24,13 @@ export type MobilePanel =
   | "security";
 export type SidebarTab =
   | "explorer"
+  | "git"
   | "deployments"
   | "identities"
   | "search"
   | "security"
   | "tests";
+  | "outline";
 export type BuildState = "idle" | "building" | "success" | "error";
 
 export interface WorkspaceTextFile {
@@ -75,6 +80,7 @@ interface WorkspaceState {
   isExplorerDragActive: boolean;
   leftSidebarTab: SidebarTab;
   mockLedgerState: MockLedgerState;
+  diffViewPath: string[] | null;
 
   // Hydration State
   hydrationComplete: boolean;
@@ -117,6 +123,7 @@ interface WorkspaceState {
   setMockLedgerState: (state: MockLedgerState) => void;
   clearMockLedgerState: () => void;
   appendTerminalOutput: (chunk: string) => void;
+  setDiffViewPath: (path: string[] | null) => void;
 
   // Misc Actions
   setHydrationComplete: (ready: boolean) => void;
@@ -190,6 +197,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       isExplorerDragActive: false,
       leftSidebarTab: "explorer",
       mockLedgerState: { entries: [] },
+      diffViewPath: null,
 
       // Initial Hydration State
       hydrationComplete: false,
@@ -378,6 +386,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       clearMockLedgerState: () => set({ mockLedgerState: { entries: [] } }),
       appendTerminalOutput: (chunk) =>
         set((state) => ({ terminalOutput: state.terminalOutput + chunk })),
+      setDiffViewPath: (diffViewPath) => set({ diffViewPath }),
 
       // Misc Actions Implementation
       setHydrationComplete: (ready) => set({ hydrationComplete: ready }),

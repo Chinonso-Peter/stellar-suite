@@ -6,18 +6,22 @@ import {
   History,
   Search,
   ShieldAlert,
+  Plug,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  ListTree,
 } from "lucide-react";
 import { ReactNode } from "react";
 
 export type ActivityTab =
   | "explorer"
+  | "git"
   | "deployments"
   | "identities"
   | "search"
-  | "security";
+  | "security"
+  | "outline";
 
 interface ActivityBarProps {
   activeTab: ActivityTab;
@@ -41,6 +45,12 @@ const tabs: ActivityBarTab[] = [
     title: "File Explorer",
   },
   {
+    id: "git",
+    icon: <History className="h-5 w-5 rotate-180" />, // Use History rotated as a placeholder for Git if GitBranch is not available or just to match look
+    label: "Source Control",
+    title: "Source Control (Git)",
+  },
+  {
     id: "deployments",
     icon: <History className="h-5 w-5" />,
     label: "History",
@@ -59,10 +69,22 @@ const tabs: ActivityBarTab[] = [
     title: "Search Files",
   },
   {
+    id: "outline",
+    icon: <ListTree className="h-5 w-5" />,
+    label: "Outline",
+    title: "Symbol Outline",
+  },
+  {
     id: "security",
     icon: <ShieldAlert className="h-5 w-5" />,
     label: "Security",
     title: "Security & Clippy",
+  },
+  {
+    id: "oracle",
+    icon: <Plug className="h-5 w-5" />,
+    label: "Oracle",
+    title: "Oracle Integration Assistant",
   },
 ];
 
